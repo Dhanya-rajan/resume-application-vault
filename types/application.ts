@@ -24,6 +24,9 @@ export type ApplicationRecord = {
   recruiterName: string;
   recruiterEmail: string;
   recruiterLinkedIn: string;
+  resumeFileName: string;
+  resumeDriveLink: string;
+  resumeDriveFileId: string;
   jobDescription: string;
   notes: string;
   createdAt: Timestamp | null;

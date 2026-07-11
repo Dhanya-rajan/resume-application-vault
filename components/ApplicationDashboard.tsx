@@ -16,6 +16,8 @@ import {
 } from "firebase/firestore";
 import {
   CalendarClock,
+  ExternalLink,
+  FileUp,
   LogOut,
   Mail,
   Pencil,
@@ -42,15 +44,22 @@ const emptyForm: ApplicationFormState = {
   recruiterName: "",
   recruiterEmail: "",
   recruiterLinkedIn: "",
+  resumeFileName: "",
+  resumeDriveLink: "",
+  resumeDriveFileId: "",
   jobDescription: "",
   notes: ""
 };
 
 export function ApplicationDashboard({
   user,
+  driveAccessToken,
+  onConnectDrive,
   onSignOut
 }: {
   user: User;
+  driveAccessToken: string | null;
+  onConnectDrive: () => Promise<void>;
   onSignOut: () => void;
 }) {
   const [applications, setApplications] = useState<ApplicationRecord[]>([]);
@@ -58,7 +67,9 @@ export function ApplicationDashboard({
   const [form, setForm] = useState<ApplicationFormState>(emptyForm);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"All" | ApplicationStatus>("All");
+  const [resumeUpload, setResumeUpload] = useState<File | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isConnectingDrive, setIsConnectingDrive] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
 
@@ -99,6 +110,7 @@ export function ApplicationDashboard({
         application.role,
         application.recruiterName,
         application.recruiterEmail,
+        application.resumeFileName,
         application.jobDescription,
         application.notes
       ]
@@ -123,9 +135,13 @@ export function ApplicationDashboard({
       recruiterName: application.recruiterName,
       recruiterEmail: application.recruiterEmail,
       recruiterLinkedIn: application.recruiterLinkedIn,
+      resumeFileName: application.resumeFileName ?? "",
+      resumeDriveLink: application.resumeDriveLink ?? "",
+      resumeDriveFileId: application.resumeDriveFileId ?? "",
       jobDescription: application.jobDescription,
       notes: application.notes
     });
+    setResumeUpload(null);
     setNotice("");
     setError("");
   }
@@ -133,6 +149,7 @@ export function ApplicationDashboard({
   function newApplication() {
     setSelectedId(null);
     setForm(emptyForm);
+    setResumeUpload(null);
     setNotice("");
     setError("");
   }
@@ -155,6 +172,33 @@ export function ApplicationDashboard({
     setNotice("");
 
     try {
+      let resumeFields = {
+        resumeFileName: form.resumeFileName,
+        resumeDriveLink: form.resumeDriveLink,
+        resumeDriveFileId: form.resumeDriveFileId
+      };
+
+      if (resumeUpload) {
+        if (!driveAccessToken) {
+          setError("Connect Google Drive before uploading a resume.");
+          setIsSaving(false);
+          return;
+        }
+
+        const driveFile = await uploadFileToDrive({
+          accessToken: driveAccessToken,
+          file: resumeUpload,
+          company: form.company,
+          role: form.role
+        });
+
+        resumeFields = {
+          resumeFileName: driveFile.name,
+          resumeDriveLink: driveFile.webViewLink,
+          resumeDriveFileId: driveFile.id
+        };
+      }
+
       const payload = {
         uid: user.uid,
         company: form.company.trim(),
@@ -166,6 +210,7 @@ export function ApplicationDashboard({
         recruiterName: form.recruiterName.trim(),
         recruiterEmail: form.recruiterEmail.trim(),
         recruiterLinkedIn: form.recruiterLinkedIn.trim(),
+        ...resumeFields,
         jobDescription: form.jobDescription.trim(),
         notes: form.notes.trim(),
         updatedAt: serverTimestamp()
@@ -181,12 +226,28 @@ export function ApplicationDashboard({
         setSelectedId(created.id);
       }
 
-      setNotice("Saved.");
+      setForm((current) => ({ ...current, ...resumeFields }));
+      setResumeUpload(null);
+      setNotice(resumeUpload ? "Saved. Resume uploaded to Google Drive." : "Saved.");
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : "Unable to save.";
       setError(message);
     } finally {
       setIsSaving(false);
+    }
+  }
+
+  async function handleConnectDrive() {
+    setIsConnectingDrive(true);
+    setError("");
+
+    try {
+      await onConnectDrive();
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : "Unable to connect Google Drive.";
+      setError(message);
+    } finally {
+      setIsConnectingDrive(false);
     }
   }
 
@@ -327,6 +388,12 @@ export function ApplicationDashboard({
                         {application.recruiterName}
                       </span>
                     ) : null}
+                    {application.resumeDriveLink ? (
+                      <span className="inline-flex items-center gap-1 rounded-md border border-line px-2 py-1">
+                        <FileUp size={14} aria-hidden="true" />
+                        Resume linked
+                      </span>
+                    ) : null}
                   </div>
                 </article>
               ))
@@ -345,7 +412,7 @@ export function ApplicationDashboard({
                 {selectedId ? "Edit application" : "New application"}
               </h2>
               <p className="mt-1 text-sm text-steel">
-                Track role details, recruiter context, and pasted job descriptions.
+                Upload a resume to Google Drive and keep the link with this application.
               </p>
             </div>
             {activeApplication ? (
@@ -458,6 +525,25 @@ export function ApplicationDashboard({
               />
             </div>
 
+            <ResumeUpload
+              driveConnected={Boolean(driveAccessToken)}
+              fileName={form.resumeFileName}
+              driveLink={form.resumeDriveLink}
+              pendingFile={resumeUpload}
+              isConnecting={isConnectingDrive}
+              onConnectDrive={handleConnectDrive}
+              onChooseFile={setResumeUpload}
+              onClearPending={() => setResumeUpload(null)}
+              onClearSaved={() =>
+                setForm((current) => ({
+                  ...current,
+                  resumeFileName: "",
+                  resumeDriveLink: "",
+                  resumeDriveFileId: ""
+                }))
+              }
+            />
+
             <TextArea
               label="Job description"
               value={form.jobDescription}
@@ -494,6 +580,112 @@ export function ApplicationDashboard({
         </section>
       </div>
     </main>
+  );
+}
+
+function ResumeUpload({
+  driveConnected,
+  fileName,
+  driveLink,
+  pendingFile,
+  isConnecting,
+  onConnectDrive,
+  onChooseFile,
+  onClearPending,
+  onClearSaved
+}: {
+  driveConnected: boolean;
+  fileName: string;
+  driveLink: string;
+  pendingFile: File | null;
+  isConnecting: boolean;
+  onConnectDrive: () => void;
+  onChooseFile: (file: File) => void;
+  onClearPending: () => void;
+  onClearSaved: () => void;
+}) {
+  function handleChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    onChooseFile(file);
+    event.target.value = "";
+  }
+
+  return (
+    <section className="rounded-lg border border-line p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h3 className="text-sm font-semibold text-ink">Resume</h3>
+          <p className="mt-1 text-sm leading-6 text-steel">
+            Choose a resume and save the application to upload it to Google Drive.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onConnectDrive}
+          disabled={isConnecting}
+          className="inline-flex h-10 items-center justify-center rounded-md border border-line px-3 text-sm font-medium text-ink hover:bg-mist disabled:cursor-not-allowed disabled:opacity-65"
+        >
+          {driveConnected ? "Drive connected" : isConnecting ? "Connecting..." : "Connect Drive"}
+        </button>
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-md bg-spruce px-3 text-sm font-semibold text-white hover:bg-[#195a50]">
+          <FileUp size={17} aria-hidden="true" />
+          Choose resume
+          <input
+            type="file"
+            accept=".pdf,.doc,.docx,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+            onChange={handleChange}
+            className="sr-only"
+          />
+        </label>
+        {pendingFile ? (
+          <button
+            type="button"
+            onClick={onClearPending}
+            className="h-10 rounded-md border border-line px-3 text-sm font-medium text-ink hover:bg-mist"
+          >
+            Clear selected file
+          </button>
+        ) : null}
+      </div>
+
+      {pendingFile ? (
+        <p className="mt-3 rounded-md bg-marigold/12 px-3 py-2 text-sm text-ink">
+          Ready to upload: {pendingFile.name}
+        </p>
+      ) : null}
+
+      {driveLink ? (
+        <div className="mt-3 flex flex-col gap-2 rounded-md bg-mist px-3 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+          <span className="min-w-0 truncate font-medium text-ink">{fileName || "Resume"}</span>
+          <div className="flex flex-wrap gap-2">
+            <a
+              href={driveLink}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex h-9 items-center gap-2 rounded-md border border-line bg-white px-3 text-sm font-medium text-ink hover:bg-mist"
+            >
+              <ExternalLink size={16} aria-hidden="true" />
+              Open
+            </a>
+            <button
+              type="button"
+              onClick={onClearSaved}
+              className="h-9 rounded-md border border-line bg-white px-3 text-sm font-medium text-ink hover:bg-mist"
+            >
+              Remove link
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </section>
   );
 }
 
@@ -556,4 +748,59 @@ function TextArea({
 
 function timestampMillis(timestamp: Timestamp | null | undefined) {
   return timestamp?.toMillis ? timestamp.toMillis() : 0;
+}
+
+async function uploadFileToDrive({
+  accessToken,
+  file,
+  company,
+  role
+}: {
+  accessToken: string;
+  file: File;
+  company: string;
+  role: string;
+}) {
+  const metadata = {
+    name: [company.trim(), role.trim(), file.name].filter(Boolean).join(" - "),
+    mimeType: file.type || "application/octet-stream"
+  };
+  const boundary = `resume_vault_${Date.now()}`;
+  const delimiter = `\r\n--${boundary}\r\n`;
+  const closeDelimiter = `\r\n--${boundary}--`;
+  const body = new Blob(
+    [
+      delimiter,
+      "Content-Type: application/json; charset=UTF-8\r\n\r\n",
+      JSON.stringify(metadata),
+      delimiter,
+      `Content-Type: ${metadata.mimeType}\r\n\r\n`,
+      file,
+      closeDelimiter
+    ],
+    { type: `multipart/related; boundary=${boundary}` }
+  );
+
+  const response = await fetch(
+    "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": `multipart/related; boundary=${boundary}`
+      },
+      body
+    }
+  );
+
+  if (!response.ok) {
+    const details = await response.text();
+    throw new Error(`Google Drive upload failed: ${details}`);
+  }
+
+  return (await response.json()) as {
+    id: string;
+    name: string;
+    webViewLink: string;
+  };
 }
