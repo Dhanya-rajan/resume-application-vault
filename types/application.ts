@@ -12,14 +12,6 @@ export const statusOptions = [
 
 export type ApplicationStatus = (typeof statusOptions)[number];
 
-export type StoredFile = {
-  name: string;
-  type: string;
-  size: number;
-  storagePath: string;
-  uploadedAt: Timestamp | null;
-};
-
 export type ApplicationRecord = {
   id: string;
   uid: string;
@@ -34,16 +26,11 @@ export type ApplicationRecord = {
   recruiterLinkedIn: string;
   jobDescription: string;
   notes: string;
-  resumeFile: StoredFile | null;
-  jobDescriptionFile: StoredFile | null;
   createdAt: Timestamp | null;
   updatedAt: Timestamp | null;
 };
 
 export type ApplicationFormState = Omit<
   ApplicationRecord,
-  "id" | "uid" | "createdAt" | "updatedAt" | "resumeFile" | "jobDescriptionFile"
-> & {
-  resumeFile: StoredFile | null;
-  jobDescriptionFile: StoredFile | null;
-};
+  "id" | "uid" | "createdAt" | "updatedAt"
+>;

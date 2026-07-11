@@ -15,32 +15,21 @@ import {
   type Timestamp
 } from "firebase/firestore";
 import {
-  deleteObject,
-  getDownloadURL,
-  ref,
-  uploadBytes
-} from "firebase/storage";
-import {
   CalendarClock,
-  Download,
-  FileText,
   LogOut,
   Mail,
   Pencil,
   Plus,
   Save,
   Search,
-  Trash2,
-  Upload,
-  X
+  Trash2
 } from "lucide-react";
-import { db, storage } from "@/lib/firebase";
+import { db } from "@/lib/firebase";
 import {
   type ApplicationFormState,
   type ApplicationRecord,
   type ApplicationStatus,
-  statusOptions,
-  type StoredFile
+  statusOptions
 } from "@/types/application";
 
 const emptyForm: ApplicationFormState = {
@@ -54,18 +43,8 @@ const emptyForm: ApplicationFormState = {
   recruiterEmail: "",
   recruiterLinkedIn: "",
   jobDescription: "",
-  notes: "",
-  resumeFile: null,
-  jobDescriptionFile: null
+  notes: ""
 };
-
-const allowedTypes = new Set([
-  "application/pdf",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "text/plain"
-]);
-
-type UploadSlot = "resumeFile" | "jobDescriptionFile";
 
 export function ApplicationDashboard({
   user,
@@ -77,8 +56,6 @@ export function ApplicationDashboard({
   const [applications, setApplications] = useState<ApplicationRecord[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [form, setForm] = useState<ApplicationFormState>(emptyForm);
-  const [resumeUpload, setResumeUpload] = useState<File | null>(null);
-  const [jdUpload, setJdUpload] = useState<File | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"All" | ApplicationStatus>("All");
   const [isSaving, setIsSaving] = useState(false);
@@ -147,12 +124,8 @@ export function ApplicationDashboard({
       recruiterEmail: application.recruiterEmail,
       recruiterLinkedIn: application.recruiterLinkedIn,
       jobDescription: application.jobDescription,
-      notes: application.notes,
-      resumeFile: application.resumeFile,
-      jobDescriptionFile: application.jobDescriptionFile
+      notes: application.notes
     });
-    setResumeUpload(null);
-    setJdUpload(null);
     setNotice("");
     setError("");
   }
@@ -160,8 +133,6 @@ export function ApplicationDashboard({
   function newApplication() {
     setSelectedId(null);
     setForm(emptyForm);
-    setResumeUpload(null);
-    setJdUpload(null);
     setNotice("");
     setError("");
   }
@@ -169,7 +140,7 @@ export function ApplicationDashboard({
   async function handleSave(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!db || !storage) {
+    if (!db) {
       setError("Firebase is not configured.");
       return;
     }
@@ -184,7 +155,7 @@ export function ApplicationDashboard({
     setNotice("");
 
     try {
-      const basePayload = {
+      const payload = {
         uid: user.uid,
         company: form.company.trim(),
         role: form.role.trim(),
@@ -200,59 +171,17 @@ export function ApplicationDashboard({
         updatedAt: serverTimestamp()
       };
 
-      let applicationId = selectedId;
-
-      if (applicationId) {
-        await updateDoc(doc(db, "applications", applicationId), basePayload);
+      if (selectedId) {
+        await updateDoc(doc(db, "applications", selectedId), payload);
       } else {
         const created = await addDoc(collection(db, "applications"), {
-          ...basePayload,
-          resumeFile: null,
-          jobDescriptionFile: null,
+          ...payload,
           createdAt: serverTimestamp()
         });
-        applicationId = created.id;
         setSelectedId(created.id);
       }
 
-      const fileUpdates: Partial<Pick<ApplicationRecord, "resumeFile" | "jobDescriptionFile">> = {};
-
-      if (resumeUpload) {
-        if (form.resumeFile?.storagePath) {
-          await deleteStoredFile(form.resumeFile.storagePath);
-        }
-        fileUpdates.resumeFile = await uploadStoredFile(
-          user.uid,
-          applicationId,
-          resumeUpload,
-          "resume"
-        );
-      }
-
-      if (jdUpload) {
-        if (form.jobDescriptionFile?.storagePath) {
-          await deleteStoredFile(form.jobDescriptionFile.storagePath);
-        }
-        fileUpdates.jobDescriptionFile = await uploadStoredFile(
-          user.uid,
-          applicationId,
-          jdUpload,
-          "job-description"
-        );
-      }
-
-      if (Object.keys(fileUpdates).length > 0) {
-        await updateDoc(doc(db, "applications", applicationId), {
-          ...fileUpdates,
-          updatedAt: serverTimestamp()
-        });
-      }
-
-      setResumeUpload(null);
-      setJdUpload(null);
-      setNotice(
-        "Saved. Uploaded files are in Firebase now, so the matching local Downloads copies can be deleted."
-      );
+      setNotice("Saved.");
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : "Unable to save.";
       setError(message);
@@ -267,7 +196,7 @@ export function ApplicationDashboard({
     }
 
     const confirmed = window.confirm(
-      `Delete ${application.company} - ${application.role} and its stored files?`
+      `Delete ${application.company} - ${application.role}?`
     );
 
     if (!confirmed) {
@@ -278,14 +207,6 @@ export function ApplicationDashboard({
     setNotice("");
 
     try {
-      await Promise.all([
-        application.resumeFile?.storagePath
-          ? deleteStoredFile(application.resumeFile.storagePath)
-          : Promise.resolve(),
-        application.jobDescriptionFile?.storagePath
-          ? deleteStoredFile(application.jobDescriptionFile.storagePath)
-          : Promise.resolve()
-      ]);
       await deleteDoc(doc(db, "applications", application.id));
 
       if (selectedId === application.id) {
@@ -295,34 +216,6 @@ export function ApplicationDashboard({
       const message = caught instanceof Error ? caught.message : "Unable to delete.";
       setError(message);
     }
-  }
-
-  async function removeFile(slot: UploadSlot) {
-    if (!db || !selectedId || !form[slot]?.storagePath) {
-      return;
-    }
-
-    try {
-      await deleteStoredFile(form[slot]!.storagePath);
-      await updateDoc(doc(db, "applications", selectedId), {
-        [slot]: null,
-        updatedAt: serverTimestamp()
-      });
-      setForm((current) => ({ ...current, [slot]: null }));
-      setNotice("Stored file deleted from Firebase.");
-    } catch (caught) {
-      const message = caught instanceof Error ? caught.message : "Unable to delete file.";
-      setError(message);
-    }
-  }
-
-  async function downloadFile(file: StoredFile) {
-    if (!storage) {
-      return;
-    }
-
-    const url = await getDownloadURL(ref(storage, file.storagePath));
-    window.open(url, "_blank", "noopener,noreferrer");
   }
 
   return (
@@ -434,12 +327,6 @@ export function ApplicationDashboard({
                         {application.recruiterName}
                       </span>
                     ) : null}
-                    {application.resumeFile ? (
-                      <span className="inline-flex items-center gap-1 rounded-md border border-line px-2 py-1">
-                        <FileText size={14} aria-hidden="true" />
-                        Resume stored
-                      </span>
-                    ) : null}
                   </div>
                 </article>
               ))
@@ -458,7 +345,7 @@ export function ApplicationDashboard({
                 {selectedId ? "Edit application" : "New application"}
               </h2>
               <p className="mt-1 text-sm text-steel">
-                Files upload to Firebase after saving.
+                Track role details, recruiter context, and pasted job descriptions.
               </p>
             </div>
             {activeApplication ? (
@@ -585,27 +472,6 @@ export function ApplicationDashboard({
               onChange={(notes) => setForm((current) => ({ ...current, notes }))}
             />
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <FileControl
-                label="Resume file"
-                storedFile={form.resumeFile}
-                pendingFile={resumeUpload}
-                onChoose={(file) => setResumeUpload(file)}
-                onDownload={downloadFile}
-                onRemoveStored={() => removeFile("resumeFile")}
-                onClearPending={() => setResumeUpload(null)}
-              />
-              <FileControl
-                label="Job description file"
-                storedFile={form.jobDescriptionFile}
-                pendingFile={jdUpload}
-                onChoose={(file) => setJdUpload(file)}
-                onDownload={downloadFile}
-                onRemoveStored={() => removeFile("jobDescriptionFile")}
-                onClearPending={() => setJdUpload(null)}
-              />
-            </div>
-
             <div className="flex flex-col gap-3 border-t border-line pt-4 sm:flex-row sm:justify-end">
               <button
                 type="button"
@@ -688,160 +554,6 @@ function TextArea({
   );
 }
 
-function FileControl({
-  label,
-  storedFile,
-  pendingFile,
-  onChoose,
-  onDownload,
-  onRemoveStored,
-  onClearPending
-}: {
-  label: string;
-  storedFile: StoredFile | null;
-  pendingFile: File | null;
-  onChoose: (file: File) => void;
-  onDownload: (file: StoredFile) => void;
-  onRemoveStored: () => void;
-  onClearPending: () => void;
-}) {
-  const id = label.toLowerCase().replace(/\s+/g, "-");
-
-  function handleChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-
-    if (!file) {
-      return;
-    }
-
-    if (!allowedTypes.has(file.type)) {
-      window.alert("Please choose a PDF, DOCX, or TXT file.");
-      event.target.value = "";
-      return;
-    }
-
-    onChoose(file);
-  }
-
-  return (
-    <div className="rounded-lg border border-line p-4">
-      <label className="block text-sm font-medium text-ink" htmlFor={id}>
-        {label}
-      </label>
-      <div className="mt-3 flex min-h-11 flex-wrap items-center gap-2">
-        <label
-          htmlFor={id}
-          className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-md border border-line px-3 text-sm font-medium text-ink hover:bg-mist"
-        >
-          <Upload size={17} aria-hidden="true" />
-          Choose file
-        </label>
-        <input
-          id={id}
-          type="file"
-          accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
-          onChange={handleChange}
-          className="sr-only"
-        />
-      </div>
-
-      {pendingFile ? (
-        <div className="mt-3 flex items-center justify-between gap-3 rounded-md bg-marigold/12 px-3 py-2 text-sm text-ink">
-          <span className="min-w-0 truncate">{pendingFile.name}</span>
-          <button
-            type="button"
-            onClick={onClearPending}
-            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-line bg-white text-ink hover:bg-mist"
-            aria-label={`Clear pending ${label}`}
-          >
-            <X size={16} aria-hidden="true" />
-          </button>
-        </div>
-      ) : null}
-
-      {storedFile ? (
-        <div className="mt-3 grid gap-2 rounded-md bg-mist px-3 py-3 text-sm">
-          <span className="truncate font-medium text-ink">{storedFile.name}</span>
-          <span className="text-xs text-steel">{formatBytes(storedFile.size)}</span>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => onDownload(storedFile)}
-              className="inline-flex h-9 items-center gap-2 rounded-md border border-line bg-white px-3 text-sm font-medium text-ink hover:bg-mist"
-            >
-              <Download size={16} aria-hidden="true" />
-              Open
-            </button>
-            <button
-              type="button"
-              onClick={onRemoveStored}
-              className="inline-flex h-9 items-center gap-2 rounded-md border border-coral/40 bg-white px-3 text-sm font-medium text-coral hover:bg-coral/10"
-            >
-              <Trash2 size={16} aria-hidden="true" />
-              Delete
-            </button>
-          </div>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-async function uploadStoredFile(
-  uid: string,
-  applicationId: string,
-  file: File,
-  label: string
-): Promise<StoredFile> {
-  if (!storage) {
-    throw new Error("Firebase Storage is not configured.");
-  }
-
-  const extension = file.name.includes(".") ? file.name.split(".").pop() : "file";
-  const cleanLabel = label.replace(/[^a-z0-9-]/gi, "-").toLowerCase();
-  const storagePath = `users/${uid}/applications/${applicationId}/${cleanLabel}-${Date.now()}.${extension}`;
-  const fileReference = ref(storage, storagePath);
-
-  await uploadBytes(fileReference, file, {
-    contentType: file.type
-  });
-
-  return {
-    name: file.name,
-    type: file.type,
-    size: file.size,
-    storagePath,
-    uploadedAt: serverTimestamp() as Timestamp
-  };
-}
-
-async function deleteStoredFile(storagePath: string) {
-  if (!storage) {
-    return;
-  }
-
-  try {
-    await deleteObject(ref(storage, storagePath));
-  } catch (caught) {
-    const error = caught as { code?: string };
-    if (error.code !== "storage/object-not-found") {
-      throw caught;
-    }
-  }
-}
-
 function timestampMillis(timestamp: Timestamp | null | undefined) {
   return timestamp?.toMillis ? timestamp.toMillis() : 0;
-}
-
-function formatBytes(bytes: number) {
-  if (bytes < 1024) {
-    return `${bytes} B`;
-  }
-
-  if (bytes < 1024 * 1024) {
-    return `${(bytes / 1024).toFixed(1)} KB`;
-  }
-
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }

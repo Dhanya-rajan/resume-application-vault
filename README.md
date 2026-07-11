@@ -1,16 +1,15 @@
 # Resume Application Vault
 
-A private Next.js dashboard for storing job applications, recruiter notes, job descriptions, and tailored resume files in Firebase.
+A private Next.js dashboard for tracking job applications, recruiter notes, pasted job descriptions, statuses, and follow-up dates in Firebase Firestore.
 
 ## Setup
 
 1. Create a Firebase project.
 2. Enable Email/Password sign-in in Firebase Authentication.
 3. Create a Firestore database.
-4. Create a Firebase Storage bucket.
-5. Copy `.env.example` to `.env.local` and fill in the Firebase web app config.
-6. Deploy `firestore.rules` and `storage.rules` in the Firebase console or Firebase CLI.
-7. Run the app:
+4. Copy `.env.example` to `.env.local` and fill in the Firebase web app config.
+5. Deploy `firestore.rules` in the Firebase console or Firebase CLI.
+6. Run the app:
 
 ```bash
 pnpm install
@@ -21,4 +20,4 @@ pnpm dev
 
 Deploy the repository to Vercel and add the same `NEXT_PUBLIC_FIREBASE_*` values as Vercel environment variables.
 
-Uploaded files are stored in Firebase Storage under your signed-in user id. After an upload succeeds in the dashboard, the local file in Downloads is no longer needed by the app.
+This version does not upload files, so it does not require Firebase Storage billing.
