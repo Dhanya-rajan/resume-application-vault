@@ -1,7 +1,7 @@
 import type { Timestamp } from "firebase/firestore";
 
 export const statusOptions = [
-  "Saved",
+  "To Do",
   "Applied",
   "Recruiter screen",
   "Interviewing",
@@ -11,6 +11,7 @@ export const statusOptions = [
 ] as const;
 
 export type ApplicationStatus = (typeof statusOptions)[number];
+export type StoredApplicationStatus = ApplicationStatus | "Saved";
 
 export type ApplicationRecord = {
   id: string;
@@ -18,7 +19,7 @@ export type ApplicationRecord = {
   company: string;
   role: string;
   jobUrl: string;
-  status: ApplicationStatus;
+  status: StoredApplicationStatus;
   dateApplied: string;
   followUpDate: string;
   recruiterName: string;
@@ -35,5 +36,27 @@ export type ApplicationRecord = {
 
 export type ApplicationFormState = Omit<
   ApplicationRecord,
-  "id" | "uid" | "createdAt" | "updatedAt"
->;
+  "id" | "uid" | "createdAt" | "updatedAt" | "status"
+> & {
+  status: ApplicationStatus;
+};
+
+export type UserSettings = {
+  uid: string;
+  driveFolderId: string;
+  driveFolderName: string;
+  driveFolderLink: string;
+  updatedAt: Timestamp | null;
+};
+
+export type MasterResumeRecord = {
+  id: string;
+  uid: string;
+  name: string;
+  notes: string;
+  tags: string;
+  driveFileId: string;
+  driveLink: string;
+  createdAt: Timestamp | null;
+  updatedAt: Timestamp | null;
+};

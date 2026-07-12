@@ -65,13 +65,13 @@ export function AuthGate() {
 
   if (!hasFirebaseConfig) {
     return (
-      <main className="flex min-h-screen items-center justify-center px-5 py-10">
-        <section className="w-full max-w-2xl rounded-lg border border-line bg-white p-6 shadow-soft">
-          <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-md bg-coral text-white">
+      <main className="flex min-h-screen items-center justify-center bg-[#061012] px-5 py-10">
+        <section className="w-full max-w-2xl rounded-lg border border-white/10 bg-white/[0.06] p-6 shadow-2xl shadow-cyan-950/30">
+          <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-md bg-[#d99b2b] text-[#061012]">
             <LockKeyhole size={22} aria-hidden="true" />
           </div>
-          <h1 className="text-2xl font-semibold text-ink">Connect Firebase</h1>
-          <p className="mt-3 text-sm leading-6 text-steel">
+          <h1 className="text-2xl font-semibold text-white">Connect Firebase</h1>
+          <p className="mt-3 text-sm leading-6 text-slate-300">
             Add your Firebase web app values to <code>.env.local</code>, then restart the
             dev server. Use <code>.env.example</code> for the required variable names.
           </p>
@@ -82,7 +82,7 @@ export function AuthGate() {
 
   if (checking) {
     return (
-      <main className="flex min-h-screen items-center justify-center px-5 text-sm text-steel">
+      <main className="flex min-h-screen items-center justify-center bg-[#061012] px-5 text-sm text-cyan-100/70">
         Checking your vault session...
       </main>
     );
@@ -100,38 +100,40 @@ export function AuthGate() {
   }
 
   return (
-    <main className="grid min-h-screen grid-cols-1 bg-mist lg:grid-cols-[minmax(0,0.95fr)_minmax(420px,0.7fr)]">
-      <section className="flex min-h-[46vh] flex-col justify-between bg-ink px-6 py-8 text-white lg:min-h-screen lg:px-12">
+    <main className="grid min-h-screen grid-cols-1 overflow-hidden bg-[#061012] lg:grid-cols-[minmax(0,0.95fr)_minmax(420px,0.7fr)]">
+      <section className="relative flex min-h-[46vh] flex-col justify-between overflow-hidden bg-[#071214] px-6 py-8 text-white lg:min-h-screen lg:px-12">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_25%_18%,rgba(44,214,194,0.24),transparent_32%),radial-gradient(circle_at_80%_40%,rgba(48,137,184,0.20),transparent_34%)]" />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-cyan-300/40 to-transparent" />
         <div className="flex items-center gap-3 text-sm font-medium text-white/80">
-          <span className="flex h-9 w-9 items-center justify-center rounded-md bg-spruce text-white">
+          <span className="flex h-9 w-9 items-center justify-center rounded-md bg-[#2cd6c2] text-[#041012] shadow-lg shadow-cyan-500/20">
             <BriefcaseBusiness size={19} aria-hidden="true" />
           </span>
           Resume Application Vault
         </div>
-        <div className="max-w-2xl py-12">
+        <div className="relative max-w-2xl py-12">
           <h1 className="max-w-xl text-4xl font-semibold leading-tight sm:text-5xl">
-            Track every job lead and keep resume links attached.
+            Job search command center.
           </h1>
           <p className="mt-5 max-w-lg text-base leading-7 text-white/72">
             Sign in with Google, upload a resume to your Drive, and save the Drive
-            link alongside each application.
+            link alongside each application in a private tracker.
           </p>
         </div>
-        <div className="grid gap-3 text-sm text-white/72 sm:grid-cols-3">
-          <span className="border-t border-white/20 pt-3">Google sign-in</span>
-          <span className="border-t border-white/20 pt-3">Drive resume links</span>
-          <span className="border-t border-white/20 pt-3">Firestore tracker</span>
+        <div className="relative grid gap-3 text-sm text-white/72 sm:grid-cols-3">
+          <span className="border-t border-cyan-200/20 pt-3">Google sign-in</span>
+          <span className="border-t border-cyan-200/20 pt-3">Drive resume links</span>
+          <span className="border-t border-cyan-200/20 pt-3">Metrics dashboard</span>
         </div>
       </section>
 
       <section className="flex items-center justify-center px-5 py-8">
-        <div className="w-full max-w-md rounded-lg border border-line bg-white p-6 shadow-soft">
+        <div className="w-full max-w-md rounded-lg border border-white/10 bg-white/[0.07] p-6 shadow-2xl shadow-cyan-950/30 backdrop-blur">
           <div className="mb-6">
-            <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-md bg-spruce text-white">
+            <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-md bg-[#2cd6c2] text-[#041012]">
               <LockKeyhole size={21} aria-hidden="true" />
             </div>
-            <h2 className="text-2xl font-semibold text-ink">Sign in with Google</h2>
-            <p className="mt-2 text-sm leading-6 text-steel">
+            <h2 className="text-2xl font-semibold text-white">Sign in with Google</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-300">
               The app uses your Google account to save tracker data and upload
               selected resumes into your Google Drive.
             </p>
@@ -146,7 +148,7 @@ export function AuthGate() {
           <button
             type="button"
             onClick={signInWithGoogle}
-            className="h-11 w-full rounded-md bg-spruce px-4 text-sm font-semibold text-white transition hover:bg-[#195a50]"
+            className="h-11 w-full rounded-md bg-[#2cd6c2] px-4 text-sm font-semibold text-[#041012] transition hover:bg-[#72efe0]"
           >
             Continue with Google
           </button>
