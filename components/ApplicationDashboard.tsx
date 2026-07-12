@@ -93,14 +93,26 @@ const tabItems: Array<{ id: AppTab; label: string; icon: typeof BarChart3 }> = [
 ];
 
 const statusTone: Record<ApplicationStatus, string> = {
-  "To Do": "border-cyan-300/25 bg-cyan-300/10 text-cyan-100",
-  Applied: "border-teal-300/25 bg-teal-300/10 text-teal-100",
-  "Recruiter screen": "border-sky-300/25 bg-sky-300/10 text-sky-100",
-  Interviewing: "border-blue-300/25 bg-blue-300/10 text-blue-100",
-  Offer: "border-emerald-300/25 bg-emerald-300/10 text-emerald-100",
-  Rejected: "border-rose-300/25 bg-rose-300/10 text-rose-100",
-  Ghosted: "border-amber-300/25 bg-amber-300/10 text-amber-100",
-  Withdrawn: "border-slate-300/20 bg-slate-300/10 text-slate-200"
+  "To Do": "border-slate-300/20 bg-slate-300/10 text-slate-200",
+  Applied: "border-teal-200/20 bg-teal-200/10 text-teal-100",
+  "Recruiter screen": "border-sky-200/20 bg-sky-200/10 text-sky-100",
+  Interviewing: "border-blue-200/20 bg-blue-200/10 text-blue-100",
+  Offer: "border-lime-200/20 bg-lime-200/10 text-lime-100",
+  Rejected: "border-rose-200/20 bg-rose-200/10 text-rose-100",
+  Ghosted: "border-amber-200/25 bg-amber-200/10 text-amber-100",
+  Withdrawn: "border-stone-300/20 bg-stone-300/10 text-stone-200"
+};
+
+const accentPalette = {
+  teal: "#5fcbbd",
+  seafoam: "#9bd7c7",
+  blue: "#6f96b8",
+  sky: "#83b8ca",
+  sage: "#9caf88",
+  amber: "#d6a55a",
+  coral: "#d77a6f",
+  slate: "#738394",
+  ivory: "#f0eadc"
 };
 
 const pipelineStatuses: ApplicationStatus[] = [
@@ -115,15 +127,24 @@ const pipelineStatuses: ApplicationStatus[] = [
 ];
 
 const pipelineColors: Record<ApplicationStatus, string> = {
-  "To Do": "#8ba4b8",
-  Applied: "#2cd6c2",
-  "Recruiter screen": "#67e8f9",
-  Interviewing: "#60a5fa",
-  Offer: "#7ddf8a",
-  Rejected: "#fb7185",
-  Withdrawn: "#64748b",
-  Ghosted: "#fbbf24"
+  "To Do": accentPalette.slate,
+  Applied: accentPalette.teal,
+  "Recruiter screen": accentPalette.sky,
+  Interviewing: accentPalette.blue,
+  Offer: accentPalette.sage,
+  Rejected: accentPalette.coral,
+  Withdrawn: "#6c7378",
+  Ghosted: accentPalette.amber
 };
+
+const weeklyBarColors = [
+  accentPalette.teal,
+  accentPalette.blue,
+  accentPalette.sage,
+  accentPalette.amber,
+  accentPalette.coral,
+  accentPalette.seafoam
+];
 
 const ghostedAfterDays = 28;
 
@@ -146,6 +167,7 @@ export function ApplicationDashboard({
   const [form, setForm] = useState<ApplicationFormState>(emptyForm);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"All" | ApplicationStatus>("All");
+  const [tableStatusFilter, setTableStatusFilter] = useState<"All" | ApplicationStatus>("All");
   const [resumeUpload, setResumeUpload] = useState<File | null>(null);
   const [resumeUploadName, setResumeUploadName] = useState("");
   const [masterUpload, setMasterUpload] = useState<File | null>(null);
@@ -278,9 +300,18 @@ export function ApplicationDashboard({
     });
   }, [normalizedApplications, search, statusFilter]);
 
+  const tableFilteredApplications = useMemo(
+    () =>
+      normalizedApplications.filter(
+        (application) =>
+          tableStatusFilter === "All" || application.status === tableStatusFilter
+      ),
+    [normalizedApplications, tableStatusFilter]
+  );
+
   const sortedTableApplications = useMemo(
     () =>
-      [...filteredApplications].sort((left, right) => {
+      [...tableFilteredApplications].sort((left, right) => {
         const leftValue = tableSortValue(left, sortKey);
         const rightValue = tableSortValue(right, sortKey);
         const result = leftValue.localeCompare(rightValue, undefined, {
@@ -290,7 +321,7 @@ export function ApplicationDashboard({
 
         return sortDirection === "asc" ? result : -result;
       }),
-    [filteredApplications, sortDirection, sortKey]
+    [tableFilteredApplications, sortDirection, sortKey]
   );
 
   const activeApplication = normalizedApplications.find(
@@ -615,7 +646,7 @@ export function ApplicationDashboard({
 
   return (
     <main className="min-h-screen overflow-hidden bg-[#061012] text-slate-100">
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_18%_8%,rgba(44,214,194,0.18),transparent_28%),radial-gradient(circle_at_82%_18%,rgba(45,120,160,0.16),transparent_30%),linear-gradient(180deg,#061012_0%,#08191b_45%,#05090b_100%)]" />
+      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_18%_8%,rgba(95,203,189,0.09),transparent_30%),radial-gradient(circle_at_82%_18%,rgba(214,165,90,0.08),transparent_32%),linear-gradient(180deg,#061012_0%,#0a1719_46%,#05090b_100%)]" />
       <div className="relative mx-auto flex min-h-screen max-w-[1500px] flex-col px-4 py-4 sm:px-6 lg:px-7">
         <AppHeader
           user={user}
@@ -624,7 +655,7 @@ export function ApplicationDashboard({
         />
 
         <div className="mt-4 grid flex-1 gap-4 lg:grid-cols-[240px_minmax(0,1fr)]">
-          <aside className="rounded-lg border border-white/10 bg-white/[0.055] p-3 shadow-2xl shadow-cyan-950/20 backdrop-blur">
+          <aside className="rounded-lg border border-white/10 bg-white/[0.055] p-3 shadow-lg shadow-black/20 backdrop-blur">
             <nav className="grid gap-1">
               {tabItems.map((item) => {
                 const Icon = item.icon;
@@ -637,7 +668,7 @@ export function ApplicationDashboard({
                     onClick={() => setActiveTab(item.id)}
                     className={`flex h-11 items-center gap-3 rounded-md px-3 text-sm font-medium transition ${
                       isActive
-                        ? "bg-[#2cd6c2] text-[#041012] shadow-lg shadow-cyan-500/20"
+                        ? "bg-[#5fcbbd] text-[#041012] shadow-md shadow-black/20"
                         : "text-slate-300 hover:bg-white/[0.07] hover:text-white"
                     }`}
                   >
@@ -647,8 +678,8 @@ export function ApplicationDashboard({
                 );
               })}
             </nav>
-            <div className="mt-4 rounded-lg border border-cyan-200/10 bg-[#061012]/65 p-3">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-200/60">
+            <div className="mt-4 rounded-lg border border-[#f0eadc]/10 bg-[#061012]/65 p-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#f0eadc]/60">
                 Drive Folder
               </p>
               <p className="mt-2 truncate text-sm text-slate-200">
@@ -657,7 +688,7 @@ export function ApplicationDashboard({
               <button
                 type="button"
                 onClick={() => setActiveTab("settings")}
-                className="mt-3 h-9 w-full rounded-md border border-white/10 text-sm font-medium text-cyan-100 hover:bg-white/[0.07]"
+                className="mt-3 h-9 w-full rounded-md border border-white/10 text-sm font-medium text-[#9bd7c7] hover:bg-white/[0.07]"
               >
                 Configure
               </button>
@@ -734,8 +765,10 @@ export function ApplicationDashboard({
                 applications={sortedTableApplications}
                 sortDirection={sortDirection}
                 sortKey={sortKey}
+                statusFilter={tableStatusFilter}
                 onOpenApplication={openApplication}
                 onSort={changeSort}
+                onStatusFilter={setTableStatusFilter}
               />
             ) : null}
 
@@ -797,14 +830,14 @@ function AppHeader({
   onSignOut: () => void;
 }) {
   return (
-    <header className="rounded-lg border border-white/10 bg-white/[0.055] p-4 shadow-2xl shadow-cyan-950/20 backdrop-blur">
+    <header className="rounded-lg border border-white/10 bg-white/[0.055] p-4 shadow-lg shadow-black/20 backdrop-blur">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-200/70">
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#9bd7c7]/75">
             Resume Application Vault
           </p>
           <div className="mt-2 flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-md bg-[#2cd6c2] text-[#041012] shadow-lg shadow-cyan-500/20">
+            <span className="flex h-10 w-10 items-center justify-center rounded-md bg-[#5fcbbd] text-[#041012] shadow-md shadow-black/20">
               <Gauge size={20} aria-hidden="true" />
             </span>
             <div>
@@ -820,7 +853,7 @@ function AppHeader({
           <button
             type="button"
             onClick={onNewApplication}
-            className="inline-flex h-10 items-center gap-2 rounded-md bg-[#2cd6c2] px-3 text-sm font-semibold text-[#041012] hover:bg-[#72efe0]"
+            className="inline-flex h-10 items-center gap-2 rounded-md bg-[#5fcbbd] px-3 text-sm font-semibold text-[#041012] hover:bg-[#9bd7c7]"
           >
             <Plus size={18} aria-hidden="true" />
             New
@@ -849,16 +882,16 @@ function DashboardView({
   onOpenApplication: (application: ApplicationRecord) => void;
 }) {
   const statCards = [
-    { label: "Applications Submitted", value: metrics.submitted, icon: BriefcaseBusiness },
-    { label: "Interviews Received", value: metrics.interviews, icon: CalendarClock },
-    { label: "Offers Received", value: metrics.offers, icon: CheckCircle2 },
-    { label: "Rejections", value: metrics.rejections, icon: TriangleAlert },
-    { label: "Response Rate", value: `${metrics.responseRate}%`, icon: TrendingUp },
-    { label: "Interview Rate", value: `${metrics.interviewRate}%`, icon: BarChart3 },
-    { label: "Offer Rate", value: `${metrics.offerRate}%`, icon: Gauge },
-    { label: "Avg Days Since Applied", value: metrics.averageDaysSinceApplication, icon: ClockIcon },
-    { label: "Applications This Week", value: metrics.thisWeek, icon: CalendarClock },
-    { label: "Active Applications", value: metrics.active, icon: CircleDot }
+    { label: "Applications Submitted", value: metrics.submitted, icon: BriefcaseBusiness, accent: accentPalette.teal },
+    { label: "Interviews Received", value: metrics.interviews, icon: CalendarClock, accent: accentPalette.blue },
+    { label: "Offers Received", value: metrics.offers, icon: CheckCircle2, accent: accentPalette.sage },
+    { label: "Rejections", value: metrics.rejections, icon: TriangleAlert, accent: accentPalette.coral },
+    { label: "Response Rate", value: `${metrics.responseRate}%`, icon: TrendingUp, accent: accentPalette.seafoam },
+    { label: "Interview Rate", value: `${metrics.interviewRate}%`, icon: BarChart3, accent: accentPalette.sky },
+    { label: "Offer Rate", value: `${metrics.offerRate}%`, icon: Gauge, accent: accentPalette.sage },
+    { label: "Avg Days Since Applied", value: metrics.averageDaysSinceApplication, icon: ClockIcon, accent: accentPalette.amber },
+    { label: "Applications This Week", value: metrics.thisWeek, icon: CalendarClock, accent: accentPalette.ivory },
+    { label: "Active Applications", value: metrics.active, icon: CircleDot, accent: accentPalette.teal }
   ];
 
   return (
@@ -868,9 +901,10 @@ function DashboardView({
           const Icon = card.icon;
           return (
             <div key={card.label} className="rounded-lg border border-white/10 bg-white/[0.055] p-4 backdrop-blur">
+              <div className="mb-3 h-1 w-12 rounded-full" style={{ backgroundColor: card.accent }} />
               <div className="flex items-start justify-between gap-3">
                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">{card.label}</p>
-                <Icon size={18} className="text-[#2cd6c2]" aria-hidden="true" />
+                <Icon size={18} style={{ color: card.accent }} aria-hidden="true" />
               </div>
               <p className="mt-4 text-3xl font-semibold text-white">{card.value}</p>
             </div>
@@ -878,15 +912,38 @@ function DashboardView({
         })}
       </div>
 
+      <section className="grid gap-4 rounded-lg border border-white/10 bg-white/[0.045] p-4 shadow-lg shadow-black/20 backdrop-blur lg:grid-cols-[1fr_280px] lg:items-center">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#f0eadc]/60">Focus map</p>
+          <h2 className="mt-1 text-lg font-semibold text-white">Application signal overview</h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
+            Momentum, timing, and pipeline shape in one calmer snapshot.
+          </p>
+        </div>
+        <div
+          className="relative h-32 overflow-hidden rounded-lg border border-white/10 bg-[#071315]"
+          aria-hidden="true"
+        >
+          <div className="absolute inset-0 bg-[linear-gradient(120deg,rgba(95,203,189,0.20),transparent_38%),linear-gradient(235deg,rgba(214,122,111,0.16),transparent_42%),radial-gradient(circle_at_80%_22%,rgba(214,165,90,0.18),transparent_24%)]" />
+          <div className="absolute inset-0 opacity-35 [background-image:linear-gradient(rgba(240,234,220,0.14)_1px,transparent_1px),linear-gradient(90deg,rgba(240,234,220,0.14)_1px,transparent_1px)] [background-size:26px_26px]" />
+          <div className="absolute bottom-5 left-5 h-10 w-28 rounded-full border border-[#9caf88]/35 bg-[#9caf88]/10" />
+          <div className="absolute right-6 top-6 h-16 w-16 rounded-full border border-[#6f96b8]/35 bg-[#6f96b8]/10" />
+          <div className="absolute bottom-6 right-16 h-2 w-24 rounded-full bg-[#f0eadc]/35" />
+        </div>
+      </section>
+
       <div className="grid gap-4 xl:grid-cols-[1fr_0.9fr]">
         <Panel title="Weekly Application Trend" eyebrow="Momentum">
           <div className="flex h-56 items-end gap-2">
-            {metrics.weekBuckets.map((bucket) => (
+            {metrics.weekBuckets.map((bucket, index) => (
               <div key={bucket.label} className="flex min-w-0 flex-1 flex-col items-center gap-2">
                 <div className="flex h-44 w-full items-end rounded-md border border-white/10 bg-[#061012]/65 p-1">
                   <div
-                    className="w-full rounded bg-gradient-to-t from-[#2cd6c2] to-[#8be8ff]"
-                    style={{ height: `${Math.max(8, bucket.percent)}%` }}
+                    className="w-full rounded"
+                    style={{
+                      height: `${Math.max(8, bucket.percent)}%`,
+                      backgroundColor: weeklyBarColors[index % weeklyBarColors.length]
+                    }}
                   />
                 </div>
                 <span className="truncate text-xs text-slate-400">{bucket.label}</span>
@@ -905,8 +962,9 @@ function DashboardView({
                 </div>
                 <div className="h-2 rounded-full bg-white/10">
                   <div
-                    className="h-2 rounded-full bg-[#2cd6c2]"
+                    className="h-2 rounded-full"
                     style={{
+                      backgroundColor: pipelineColors[status],
                       width: `${metrics.total ? ((metrics.statusCounts[status] ?? 0) / metrics.total) * 100 : 0}%`
                     }}
                   />
@@ -999,9 +1057,9 @@ function PipelineBreakdown({
           </div>
         )}
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-          <div className="rounded-full border border-white/10 bg-[#061012]/90 px-6 py-5 text-center shadow-2xl shadow-cyan-950/30">
+          <div className="rounded-full border border-white/10 bg-[#061012]/90 px-6 py-5 text-center shadow-lg shadow-black/30">
             <p className="text-3xl font-semibold text-white">{total}</p>
-            <p className="mt-1 text-xs uppercase tracking-[0.18em] text-cyan-100/60">
+            <p className="mt-1 text-xs uppercase tracking-[0.18em] text-[#f0eadc]/60">
               Total
             </p>
           </div>
@@ -1123,8 +1181,8 @@ function ApplicationsView({
                 onClick={() => onSelect(application)}
                 className={`rounded-lg border p-4 text-left transition ${
                   activeApplication?.id === application.id
-                    ? "border-[#2cd6c2]/70 bg-[#2cd6c2]/10"
-                    : "border-white/10 bg-[#061012]/65 hover:border-cyan-200/30"
+                    ? "border-[#5fcbbd]/70 bg-[#5fcbbd]/10"
+                    : "border-white/10 bg-[#061012]/65 hover:border-[#9bd7c7]/30"
                 }`}
               >
                 <div className="flex items-start justify-between gap-3">
@@ -1284,7 +1342,7 @@ function ApplicationsView({
             <button
               type="submit"
               disabled={isSaving}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#2cd6c2] px-4 text-sm font-semibold text-[#041012] hover:bg-[#72efe0] disabled:cursor-not-allowed disabled:opacity-65"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#5fcbbd] px-4 text-sm font-semibold text-[#041012] hover:bg-[#9bd7c7] disabled:cursor-not-allowed disabled:opacity-65"
             >
               <Save size={17} aria-hidden="true" />
               {isSaving ? "Saving..." : "Save application"}
@@ -1300,14 +1358,18 @@ function TableView({
   applications,
   sortDirection,
   sortKey,
+  statusFilter,
   onOpenApplication,
-  onSort
+  onSort,
+  onStatusFilter
 }: {
   applications: ApplicationRecord[];
   sortDirection: SortDirection;
   sortKey: SortKey;
+  statusFilter: "All" | ApplicationStatus;
   onOpenApplication: (application: ApplicationRecord) => void;
   onSort: (key: SortKey) => void;
+  onStatusFilter: (value: "All" | ApplicationStatus) => void;
 }) {
   const columns: Array<{ key: SortKey; label: string }> = [
     { key: "company", label: "Company" },
@@ -1321,6 +1383,27 @@ function TableView({
 
   return (
     <Panel title="Spreadsheet View" eyebrow="Sortable">
+      <div className="mb-4 flex flex-col gap-3 rounded-lg border border-white/10 bg-[#061012]/55 p-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-sm font-medium text-white">{applications.length} applications shown</p>
+          <p className="mt-1 text-xs text-slate-400">{statusFilter === "All" ? "All statuses" : statusFilter}</p>
+        </div>
+        <label className="flex flex-col gap-2 text-sm font-medium text-slate-300 sm:w-64">
+          Status
+          <select
+            value={statusFilter}
+            onChange={(event) => onStatusFilter(event.target.value as "All" | ApplicationStatus)}
+            className={selectClass()}
+          >
+            <option value="All">All statuses</option>
+            {statusOptions.map((status) => (
+              <option key={status} value={status}>
+                {status}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
       <div className="overflow-x-auto">
         <table className="min-w-[980px] w-full border-separate border-spacing-0 text-left text-sm">
           <thead>
@@ -1330,7 +1413,7 @@ function TableView({
                   <button
                     type="button"
                     onClick={() => onSort(column.key)}
-                    className="inline-flex items-center gap-1 hover:text-cyan-100"
+                    className="inline-flex items-center gap-1 hover:text-[#9bd7c7]"
                   >
                     {column.label}
                     {sortKey === column.key ? (sortDirection === "asc" ? "↑" : "↓") : ""}
@@ -1349,7 +1432,7 @@ function TableView({
                   <button
                     type="button"
                     onClick={() => onOpenApplication(application)}
-                    className="font-semibold text-white hover:text-[#72efe0]"
+                    className="font-semibold text-white hover:text-[#9bd7c7]"
                   >
                     {application.company || "Untitled"}
                   </button>
@@ -1443,7 +1526,7 @@ function MasterResumesView({
           <button
             type="submit"
             disabled={isSaving}
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#2cd6c2] px-4 text-sm font-semibold text-[#041012] hover:bg-[#72efe0] disabled:cursor-not-allowed disabled:opacity-65"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#5fcbbd] px-4 text-sm font-semibold text-[#041012] hover:bg-[#9bd7c7] disabled:cursor-not-allowed disabled:opacity-65"
           >
             <FileUp size={17} aria-hidden="true" />
             {isSaving ? "Uploading..." : "Upload master resume"}
@@ -1458,7 +1541,7 @@ function MasterResumesView({
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <h3 className="truncate font-semibold text-white">{resume.name}</h3>
-                  {resume.tags ? <p className="mt-1 text-sm text-cyan-100/70">{resume.tags}</p> : null}
+                  {resume.tags ? <p className="mt-1 text-sm text-[#9bd7c7]/70">{resume.tags}</p> : null}
                 </div>
                 <button
                   type="button"
@@ -1474,7 +1557,7 @@ function MasterResumesView({
                 href={resume.driveLink}
                 target="_blank"
                 rel="noreferrer"
-                className="mt-3 inline-flex h-9 items-center gap-2 rounded-md border border-white/10 px-3 text-sm font-medium text-cyan-100 hover:bg-white/[0.07]"
+                className="mt-3 inline-flex h-9 items-center gap-2 rounded-md border border-white/10 px-3 text-sm font-medium text-[#9bd7c7] hover:bg-white/[0.07]"
               >
                 <ExternalLink size={16} aria-hidden="true" />
                 Open in Drive
@@ -1528,7 +1611,7 @@ function SettingsView({
               href={userSettings.driveFolderLink}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-white/10 text-sm font-medium text-cyan-100 hover:bg-white/[0.07]"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-white/10 text-sm font-medium text-[#9bd7c7] hover:bg-white/[0.07]"
             >
               <ExternalLink size={16} aria-hidden="true" />
               Open selected folder
@@ -1538,7 +1621,7 @@ function SettingsView({
             type="button"
             onClick={onCreateFolder}
             disabled={isSaving}
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#2cd6c2] px-4 text-sm font-semibold text-[#041012] hover:bg-[#72efe0] disabled:cursor-not-allowed disabled:opacity-65"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#5fcbbd] px-4 text-sm font-semibold text-[#041012] hover:bg-[#9bd7c7] disabled:cursor-not-allowed disabled:opacity-65"
           >
             <Folder size={17} aria-hidden="true" />
             {isSaving ? "Saving..." : "Create Resume Application Vault folder"}
@@ -1561,7 +1644,7 @@ function SettingsView({
             type="button"
             onClick={onSaveFolder}
             disabled={isSaving}
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-white/10 px-4 text-sm font-semibold text-cyan-100 hover:bg-white/[0.07]"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-white/10 px-4 text-sm font-semibold text-[#9bd7c7] hover:bg-white/[0.07]"
           >
             <Link size={17} aria-hidden="true" />
             Save folder link
@@ -1616,7 +1699,7 @@ function ResumeUpload({
           type="button"
           onClick={onConnectDrive}
           disabled={isConnecting}
-          className="inline-flex h-10 items-center justify-center rounded-md border border-white/10 px-3 text-sm font-medium text-cyan-100 hover:bg-white/[0.07] disabled:cursor-not-allowed disabled:opacity-65"
+          className="inline-flex h-10 items-center justify-center rounded-md border border-white/10 px-3 text-sm font-medium text-[#9bd7c7] hover:bg-white/[0.07] disabled:cursor-not-allowed disabled:opacity-65"
         >
           {driveConnected ? "Drive connected" : isConnecting ? "Connecting..." : "Connect Drive"}
         </button>
@@ -1640,7 +1723,7 @@ function ResumeUpload({
               href={driveLink}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex h-9 items-center gap-2 rounded-md border border-white/10 px-3 text-sm font-medium text-cyan-100 hover:bg-white/[0.07]"
+              className="inline-flex h-9 items-center gap-2 rounded-md border border-white/10 px-3 text-sm font-medium text-[#9bd7c7] hover:bg-white/[0.07]"
             >
               <ExternalLink size={16} aria-hidden="true" />
               Open
@@ -1690,7 +1773,7 @@ function FileChooser({
   return (
     <div className="mt-4">
       <div className="flex flex-wrap items-center gap-2">
-        <label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-md bg-[#2cd6c2] px-3 text-sm font-semibold text-[#041012] hover:bg-[#72efe0]">
+        <label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-md bg-[#5fcbbd] px-3 text-sm font-semibold text-[#041012] hover:bg-[#9bd7c7]">
           <FileUp size={17} aria-hidden="true" />
           {buttonLabel}
           <input
@@ -1754,7 +1837,7 @@ function FolderStatus({
           type="button"
           onClick={onConnectDrive}
           disabled={isConnecting}
-          className="h-10 rounded-md border border-white/10 px-3 text-sm font-medium text-cyan-100 hover:bg-white/[0.07]"
+          className="h-10 rounded-md border border-white/10 px-3 text-sm font-medium text-[#9bd7c7] hover:bg-white/[0.07]"
         >
           {driveConnected ? "Drive connected" : isConnecting ? "Connecting..." : "Connect Drive"}
         </button>
@@ -1783,7 +1866,7 @@ function ApplicationMiniList({
           key={application.id}
           type="button"
           onClick={() => onOpenApplication(application)}
-          className="rounded-lg border border-white/10 bg-[#061012]/65 p-3 text-left hover:border-cyan-200/30"
+          className="rounded-lg border border-white/10 bg-[#061012]/65 p-3 text-left hover:border-[#9bd7c7]/30"
         >
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
@@ -1810,11 +1893,11 @@ function Panel({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-lg border border-white/10 bg-white/[0.055] p-4 shadow-2xl shadow-cyan-950/20 backdrop-blur">
+    <section className="rounded-lg border border-white/10 bg-white/[0.055] p-4 shadow-lg shadow-black/20 backdrop-blur">
       <div className="mb-4 flex items-start justify-between gap-3">
         <div>
           {eyebrow ? (
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-200/60">{eyebrow}</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#f0eadc]/60">{eyebrow}</p>
           ) : null}
           <h2 className="mt-1 text-lg font-semibold text-white">{title}</h2>
         </div>
@@ -1839,7 +1922,7 @@ function IconLink({ href, label }: { href: string; label: string }) {
       href={href}
       target="_blank"
       rel="noreferrer"
-      className="inline-flex h-8 items-center gap-1 rounded-md border border-white/10 px-2 text-xs font-medium text-cyan-100 hover:bg-white/[0.07]"
+      className="inline-flex h-8 items-center gap-1 rounded-md border border-white/10 px-2 text-xs font-medium text-[#9bd7c7] hover:bg-white/[0.07]"
     >
       <ExternalLink size={13} aria-hidden="true" />
       {label}
