@@ -99,8 +99,33 @@ const statusTone: Record<ApplicationStatus, string> = {
   Interviewing: "border-blue-300/25 bg-blue-300/10 text-blue-100",
   Offer: "border-emerald-300/25 bg-emerald-300/10 text-emerald-100",
   Rejected: "border-rose-300/25 bg-rose-300/10 text-rose-100",
+  Ghosted: "border-amber-300/25 bg-amber-300/10 text-amber-100",
   Withdrawn: "border-slate-300/20 bg-slate-300/10 text-slate-200"
 };
+
+const pipelineStatuses: ApplicationStatus[] = [
+  "To Do",
+  "Applied",
+  "Recruiter screen",
+  "Interviewing",
+  "Offer",
+  "Rejected",
+  "Withdrawn",
+  "Ghosted"
+];
+
+const pipelineColors: Record<ApplicationStatus, string> = {
+  "To Do": "#8ba4b8",
+  Applied: "#2cd6c2",
+  "Recruiter screen": "#67e8f9",
+  Interviewing: "#60a5fa",
+  Offer: "#7ddf8a",
+  Rejected: "#fb7185",
+  Withdrawn: "#64748b",
+  Ghosted: "#fbbf24"
+};
+
+const ghostedAfterDays = 28;
 
 export function ApplicationDashboard({
   user,
@@ -142,8 +167,9 @@ export function ApplicationDashboard({
       return;
     }
 
+    const database = db;
     const applicationsQuery = query(
-      collection(db, "applications"),
+      collection(database, "applications"),
       where("uid", "==", user.uid)
     );
 
@@ -158,6 +184,21 @@ export function ApplicationDashboard({
           .sort((left, right) => timestampMillis(right.updatedAt) - timestampMillis(left.updatedAt));
 
         setApplications(nextApplications);
+
+        const todayStart = startOfToday();
+        for (const documentSnapshot of snapshot.docs) {
+          const application = {
+            id: documentSnapshot.id,
+            ...documentSnapshot.data()
+          } as ApplicationRecord;
+
+          if (shouldAutoGhost(application, todayStart)) {
+            void updateDoc(doc(database, "applications", application.id), {
+              status: "Ghosted",
+              updatedAt: serverTimestamp()
+            });
+          }
+        }
       },
       (caught) => setError(caught.message)
     );
@@ -876,6 +917,13 @@ function DashboardView({
         </Panel>
       </div>
 
+      <Panel title="Pipeline Breakdown" eyebrow="Status mix">
+        <PipelineBreakdown
+          items={metrics.pipelineBreakdown}
+          total={metrics.total}
+        />
+      </Panel>
+
       <div className="grid gap-4 xl:grid-cols-2">
         <Panel title="Follow-ups Due" eyebrow="Attention">
           <ApplicationMiniList
@@ -891,6 +939,95 @@ function DashboardView({
             onOpenApplication={onOpenApplication}
           />
         </Panel>
+      </div>
+    </div>
+  );
+}
+
+function PipelineBreakdown({
+  items,
+  total
+}: {
+  items: Array<{ status: ApplicationStatus; count: number; percent: number }>;
+  total: number;
+}) {
+  let offset = 25;
+  const visibleItems = items.filter((item) => item.count > 0);
+
+  return (
+    <div className="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)] lg:items-center">
+      <div className="relative mx-auto h-64 w-64">
+        {total ? (
+          <svg viewBox="0 0 42 42" className="h-full w-full -rotate-90">
+            <circle
+              cx="21"
+              cy="21"
+              r="15.9155"
+              fill="transparent"
+              stroke="rgba(255,255,255,0.09)"
+              strokeWidth="6"
+            />
+            {visibleItems.map((item) => {
+              const dash = `${item.percent} ${100 - item.percent}`;
+              const currentOffset = offset;
+              offset -= item.percent;
+
+              return (
+                <circle
+                  key={item.status}
+                  cx="21"
+                  cy="21"
+                  r="15.9155"
+                  fill="transparent"
+                  stroke={pipelineColors[item.status]}
+                  strokeDasharray={dash}
+                  strokeDashoffset={currentOffset}
+                  strokeLinecap="round"
+                  strokeWidth="6"
+                  className="cursor-help transition-opacity hover:opacity-80 focus:opacity-80"
+                  tabIndex={0}
+                  aria-label={`${item.status}: ${item.count} applications, ${item.percent}%`}
+                >
+                  <title>{`${item.status}: ${item.count} applications (${item.percent}%)`}</title>
+                </circle>
+              );
+            })}
+          </svg>
+        ) : (
+          <div className="flex h-full w-full items-center justify-center rounded-full border border-dashed border-white/15 text-sm text-slate-400">
+            No data yet
+          </div>
+        )}
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+          <div className="rounded-full border border-white/10 bg-[#061012]/90 px-6 py-5 text-center shadow-2xl shadow-cyan-950/30">
+            <p className="text-3xl font-semibold text-white">{total}</p>
+            <p className="mt-1 text-xs uppercase tracking-[0.18em] text-cyan-100/60">
+              Total
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-2 sm:grid-cols-2">
+        {items.map((item) => (
+          <div
+            key={item.status}
+            className="flex items-center justify-between gap-3 rounded-md border border-white/10 bg-[#061012]/65 px-3 py-2"
+            title={`${item.status}: ${item.count} applications (${item.percent}%)`}
+          >
+            <span className="flex min-w-0 items-center gap-2">
+              <span
+                className="h-3 w-3 shrink-0 rounded-full"
+                style={{ backgroundColor: pipelineColors[item.status] }}
+              />
+              <span className="truncate text-sm text-slate-200">{item.status}</span>
+            </span>
+            <span className="shrink-0 text-sm font-semibold text-white">
+              {item.count}
+              <span className="ml-2 text-xs font-medium text-slate-400">{item.percent}%</span>
+            </span>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -1779,8 +1916,29 @@ function normalizeStatus(status: ApplicationRecord["status"]): ApplicationStatus
   return status === "Saved" ? "To Do" : status;
 }
 
+function shouldAutoGhost(application: ApplicationRecord, todayStart: number) {
+  const status = normalizeStatus(application.status);
+
+  if (status !== "Applied" && status !== "Recruiter screen") {
+    return false;
+  }
+
+  const applied = dateValue(application.dateApplied);
+
+  if (!applied) {
+    return false;
+  }
+
+  return todayStart - applied >= ghostedAfterDays * 24 * 60 * 60 * 1000;
+}
+
 function timestampMillis(timestamp: Timestamp | null | undefined) {
   return timestamp?.toMillis ? timestamp.toMillis() : 0;
+}
+
+function startOfToday() {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
 }
 
 function dateValue(date: string) {
@@ -1789,8 +1947,7 @@ function dateValue(date: string) {
 }
 
 function calculateMetrics(applications: ApplicationRecord[]) {
-  const now = new Date();
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const todayStart = startOfToday();
   const weekStart = todayStart - 6 * 24 * 60 * 60 * 1000;
   const statusCounts = statusOptions.reduce(
     (accumulator, status) => ({ ...accumulator, [status]: 0 }),
@@ -1807,6 +1964,7 @@ function calculateMetrics(applications: ApplicationRecord[]) {
     "Interviewing",
     "Offer",
     "Rejected",
+    "Ghosted",
     "Withdrawn"
   ];
   const responseStatuses: ApplicationStatus[] = [
@@ -1866,6 +2024,15 @@ function calculateMetrics(applications: ApplicationRecord[]) {
     };
   });
   const maxWeekCount = Math.max(1, ...weekBuckets.map((bucket) => bucket.count));
+  const pipelineBreakdown = pipelineStatuses.map((status) => {
+    const count = statusCounts[status] ?? 0;
+
+    return {
+      status,
+      count,
+      percent: percent(count, applications.length)
+    };
+  });
 
   return {
     active,
@@ -1877,6 +2044,7 @@ function calculateMetrics(applications: ApplicationRecord[]) {
     offers,
     oldestActive,
     overdueFollowUps,
+    pipelineBreakdown,
     rejections,
     responseRate: percent(responses, submitted),
     statusCounts,

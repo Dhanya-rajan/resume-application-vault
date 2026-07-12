@@ -7,6 +7,7 @@ export const statusOptions = [
   "Interviewing",
   "Offer",
   "Rejected",
+  "Ghosted",
   "Withdrawn"
 ] as const;
 
