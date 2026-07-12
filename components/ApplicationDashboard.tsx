@@ -68,6 +68,7 @@ export function ApplicationDashboard({
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"All" | ApplicationStatus>("All");
   const [resumeUpload, setResumeUpload] = useState<File | null>(null);
+  const [resumeUploadName, setResumeUploadName] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isConnectingDrive, setIsConnectingDrive] = useState(false);
   const [notice, setNotice] = useState("");
@@ -142,6 +143,7 @@ export function ApplicationDashboard({
       notes: application.notes
     });
     setResumeUpload(null);
+    setResumeUploadName("");
     setNotice("");
     setError("");
   }
@@ -150,6 +152,7 @@ export function ApplicationDashboard({
     setSelectedId(null);
     setForm(emptyForm);
     setResumeUpload(null);
+    setResumeUploadName("");
     setNotice("");
     setError("");
   }
@@ -189,7 +192,8 @@ export function ApplicationDashboard({
           accessToken: driveAccessToken,
           file: resumeUpload,
           company: form.company,
-          role: form.role
+          role: form.role,
+          uploadName: resumeUploadName
         });
 
         resumeFields = {
@@ -228,6 +232,7 @@ export function ApplicationDashboard({
 
       setForm((current) => ({ ...current, ...resumeFields }));
       setResumeUpload(null);
+      setResumeUploadName("");
       setNotice(resumeUpload ? "Saved. Resume uploaded to Google Drive." : "Saved.");
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : "Unable to save.";
@@ -527,13 +532,23 @@ export function ApplicationDashboard({
 
             <ResumeUpload
               driveConnected={Boolean(driveAccessToken)}
+              company={form.company}
+              role={form.role}
               fileName={form.resumeFileName}
               driveLink={form.resumeDriveLink}
               pendingFile={resumeUpload}
+              pendingFileName={resumeUploadName}
               isConnecting={isConnectingDrive}
               onConnectDrive={handleConnectDrive}
-              onChooseFile={setResumeUpload}
-              onClearPending={() => setResumeUpload(null)}
+              onChooseFile={(file) => {
+                setResumeUpload(file);
+                setResumeUploadName(buildDriveFileName(file, form.company, form.role));
+              }}
+              onRenamePending={setResumeUploadName}
+              onClearPending={() => {
+                setResumeUpload(null);
+                setResumeUploadName("");
+              }}
               onClearSaved={() =>
                 setForm((current) => ({
                   ...current,
@@ -585,22 +600,30 @@ export function ApplicationDashboard({
 
 function ResumeUpload({
   driveConnected,
+  company,
+  role,
   fileName,
   driveLink,
   pendingFile,
+  pendingFileName,
   isConnecting,
   onConnectDrive,
   onChooseFile,
+  onRenamePending,
   onClearPending,
   onClearSaved
 }: {
   driveConnected: boolean;
+  company: string;
+  role: string;
   fileName: string;
   driveLink: string;
   pendingFile: File | null;
+  pendingFileName: string;
   isConnecting: boolean;
   onConnectDrive: () => void;
   onChooseFile: (file: File) => void;
+  onRenamePending: (value: string) => void;
   onClearPending: () => void;
   onClearSaved: () => void;
 }) {
@@ -657,9 +680,19 @@ function ResumeUpload({
       </div>
 
       {pendingFile ? (
-        <p className="mt-3 rounded-md bg-marigold/12 px-3 py-2 text-sm text-ink">
-          Ready to upload: {pendingFile.name}
-        </p>
+        <div className="mt-3 rounded-md bg-marigold/12 px-3 py-3">
+          <p className="text-sm text-ink">Ready to upload: {pendingFile.name}</p>
+          <label className="mt-3 block" htmlFor="resume-drive-name">
+            <span className="text-sm font-medium text-ink">Name in Google Drive</span>
+            <input
+              id="resume-drive-name"
+              value={pendingFileName}
+              onChange={(event) => onRenamePending(event.target.value)}
+              placeholder={buildDriveFileName(pendingFile, company, role)}
+              className="mt-2 h-11 w-full rounded-md border border-line bg-white px-3 text-sm text-ink"
+            />
+          </label>
+        </div>
       ) : null}
 
       {driveLink ? (
@@ -754,15 +787,17 @@ async function uploadFileToDrive({
   accessToken,
   file,
   company,
-  role
+  role,
+  uploadName
 }: {
   accessToken: string;
   file: File;
   company: string;
   role: string;
+  uploadName: string;
 }) {
   const metadata = {
-    name: [company.trim(), role.trim(), file.name].filter(Boolean).join(" - "),
+    name: uploadName.trim() || buildDriveFileName(file, company, role),
     mimeType: file.type || "application/octet-stream"
   };
   const boundary = `resume_vault_${Date.now()}`;
@@ -803,4 +838,31 @@ async function uploadFileToDrive({
     name: string;
     webViewLink: string;
   };
+}
+
+function buildDriveFileName(file: File, company: string, role: string) {
+  const extension = getFileExtension(file.name);
+  const dateStamp = new Date()
+    .toISOString()
+    .replace(/[-:]/g, "")
+    .replace(/\.\d{3}Z$/, "");
+  const baseName = [company, role, "resume", dateStamp]
+    .map((part) => sanitizeDriveNamePart(part))
+    .filter(Boolean)
+    .join(" - ");
+
+  return `${baseName || "resume"}${extension}`;
+}
+
+function getFileExtension(fileName: string) {
+  const lastDot = fileName.lastIndexOf(".");
+  return lastDot >= 0 ? fileName.slice(lastDot) : "";
+}
+
+function sanitizeDriveNamePart(value: string) {
+  return value
+    .trim()
+    .replace(/[\\/:*?"<>|]+/g, "-")
+    .replace(/\s+/g, " ")
+    .slice(0, 80);
 }
